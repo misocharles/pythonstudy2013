@@ -1,0 +1,304 @@
+# 파일에 데이터 저장하기 #
+
+### 1. 프로그램은 데이터를 만듭니다 ###
+이전 챕터의 소스를 응용하여..
+
+1. man이라는 빈 리스트를 만듭니다
+2. other라는 빈 리스트를 만듭니다
+3. line-spoken 변수에서 불필요한 공백 문자를 제거합니다
+4. role 값에 따라 line_spoken을 올바른 리스트에 추가합니다
+5. man과 other 리스트를 각기 화면에 출력합니다
+
+  	man = []
+		other = []
+		
+		try:
+		    data = open('sketch.txt')
+		
+			for each_line in data:
+		    	try:
+		            (role, line_spoken) = each_line.split(':', 1)
+		            line_spoken = line_spoken.strip()
+		            if role == 'Man':
+		                man.append(line_spoken)
+		            elif role == 'Other Man':
+		                other.append(line_spoken)
+		        except ValueError:
+		            pass
+		
+		    data.close()
+		except IOError:
+		    print('The datafile is missing!')
+		
+		print(man)
+		print(other)
+
+### 2. 쓰기모드로 파일 열기 ###
+
+#### 쓰기모드로 파일을 열 경우 open 함수 이용시 'w'인자를 사용합니다 ####
+out= open("data.out", **"w"**)
+#### 파일에 데이터를 저장하기 위해선 print 함수에서 file 파라미터에 open에 사용한 개체를 던져 줍니다
+print("안녕하세요?", file=**out**)
+#### 작업을 마친후에는 파일을 닫습니다. (플러싱) ####
+out.close()
+
+#### 실습 ####
+위의 소스에서 할당된 man, other 개체를 각각 man_data.txt , other_data.txt 파일에 저장하세요
+
+    try:
+    	man_file = open('man_data.txt', 'w')
+    	other_file = open('other_data.txt', 'w')
+    
+    	print(man, file=man_file)
+    	print(other, file=other_file)
+    
+    	man_file.close()
+    	other_file.close()
+
+    except IOError:
+    	print('File error.')
+
+### 3. 예외가 발생된 후에도 파일은 여전히 열려 있습니다 ###
+try문 안에서 예외상황이 발생했을 경우 커서는 except문으로 향하며 예외상황이 발생한 이후의 라인은 실행되지 않습니다.
+
+    try:
+    	man_file = open('man_data.txt', 'w')
+    	other_file = open('other_data.txt', 'w')
+    
+    	print(man, file=man_file)
+    	print(other, file=other_file)	# 에러 !!!    		
+
+    	man_file.close()				# 실행안됨
+    	other_file.close()				# 실행안됨
+
+    except IOError:
+    	print('File error.')
+
+### 4. try문을 finally로 확장하기 ###
+예외 상황이 있더라도 반드시 실행이 되어야 하는 코드는 finally문안에 작성합니다.
+
+    try:
+    	man_file = open('man_data.txt', 'w')
+    	other_file = open('other_data.txt', 'w')
+    
+		print(man, file=man_file)
+    	print(other, file=other_file)
+    
+    except IOError:
+    	print('File error.')
+    
+	finally:
+     	man_file.close()
+     	other_file.close()
+
+### 5. 에러의 종류를 아는 것만으로는 충분하지 않습니다 ###
+파일을 저장할 수 없는 경우는 예측할 수 없는 경우가 많습니다.
+
+1. 디스크 I/O 에러 (베드섹터) ??
+2. 디스크 용량 Full ??
+3. USB를 코드 작동 중간에 뽑아 버렸다 ??
+4. 기타 등등
+
+#### 우리는 알 수 파이썬 인터프리터는 알고 있습니다. ####
+실제로 디스크에 없는 파일(missing.txt)을 열 때 나타나는 에러를 살펴 보겠습니다.
+
+	try:
+		data = open('missing.txt')
+		print(data.readline(), end='')
+	except IOError:
+		print('File Error')
+	finally:
+		data.close()
+	
+다음과 같은 에러가 발생합니다.
+
+	Traceback (most recent call last):
+	  File "C:\workspace\Python33\PythonStudy2013\ch04.py", line 7, in <module>
+	File Error
+	    data.close()
+	NameError: name 'data' is not defined
+
+코드를 살펴보면 open 함수 사용시 디스크에 없는 파일을 열었기 때문에 에러가 발생하여 data라는 개체를 할당하지 못했습니다. 그 후 except문에 있는 'File Error'를 출력하고 finally 문을 실행합니다. 그런데 할당되지 않은 data 개체를 close() 하기 때문에 에러가 발생한 것 입니다.
+
+그러므로 finally 문에 locals() 함수를 이용하여 'data' 라는 이름이 존재하는지 체크하는 로직을 추가합니다.
+
+	try:
+		data = open('missing.txt')
+		print(data.readline(), end='')
+	except IOError:
+		print('File Error')
+	finally:
+		if 'data' in locals():
+			data.close()
+
+locals() 함수를 이용하여 finally문에서의 에러 상황은 처리 했으나 아직 에러의 원인은 알지 못합니다. 에러의 원인을 알기 위해 파이썬 인터프리터가 알고 있는 에러 상황을 출력해 보도록 합니다.
+
+	try:
+		data = open('missing.txt')
+		print(data.readline(), end='')
+	except IOError as err:		
+		print('File Error: ' + err)
+	finally:
+		if 'data' in locals():
+			data.close()
+
+그런데 또 다른 에러가 발생합니다.
+
+	Traceback (most recent call last):
+	  File "C:\workspace\Python33\PythonStudy2013\ch04.py", line 5, in <module>
+	    print('File Error: ' + err)
+	TypeError: Can't convert 'FileNotFoundError' object to str implicitly
+
+에러 메세지를 살펴보니 Type Convert 에러 입니다. 예외 개체는 리스트형과 달리 바로 print()함수로 출력이 되지 않은 모양입니다. str() 함수를 이용하여 형변환을 해 줍니다.
+
+	try:
+		data = open('missing.txt')
+		print(data.readline(), end='')
+	except IOError as err:		
+		print('File Error: ' +  str(err))
+	finally:
+		if 'data' in locals():
+			data.close()
+
+코드를 실행합니다.
+
+	File Error: [Errno 2] No such file or directory: 'missing.txt'
+
+이제 [Err No 2]라는 코드의 에러 메세지를 출력할 수 있습니다.
+
+### 6. with를 사용하여 파일 작업하기 ###
+일반적으로 try / except / finally 패턴을 많이 사용하고 있지만 with문을 사용하여 코드의 양을 줄일 수 있습니다.
+
+	try:
+		data = open('its.txt' , "w")
+		print("It is ... ", file=data)
+	except IOError as err:		
+		print('File error: ' + str(err))
+	finally:
+		if 'data' in locals():
+			data.close()
+
+위 코드는 아래의 코드와 동일한 작동을 합니다
+
+	try:
+		with open('its.txt' , "w") as data:
+			print("It is ... ", file=data)
+	except IOError as err:		
+		print('File error: ' + str(err))
+
+이처럼 with 문을 사용하면 파일을 닫을 필요가 없습니다. 파이썬 인터프리터가 자동으로 파일을 처리해 줍니다.
+
+그러나 개인적으론 try / except / finally 를 더 선호 합니다. 파이썬이 아무리 짧은 코드가 장점이라 하지만 명시적인 코드가 가동성이나 에러 상황 대처에 더 유리하다고 생각 됩니다. 여러분은 어떤 방법을 좋아할지는...??
+
+#### 실습 ####
+
+    try:
+    	man_file = open('man_data.txt', 'w')
+    	other_file = open('other_data.txt', 'w')
+    
+		print(man, file=man_file)
+    	print(other, file=other_file)
+    
+	except IOError as err:		
+		print('File error: ' + str(err))
+    
+	finally:
+		if 'man_file' in locals():
+	     	man_file.close()
+		if 'other_file' in locals():
+     		other_file.close()
+
+위의 소스를 with문으로 사용하여 재작성 하십시요.
+
+    try:
+		with open('man_data.txt', 'w') as man_file:
+			print(man, file=man_file)
+    	with open('other_data.txt', 'w') as other_file:
+	    	print(other, file=other_file)
+    
+	except IOError as err:		
+		print('File error: ' + str(err))
+
+콤마(,)를 사용하여 2개의 with 문을 1개의 with 문으로 만들 수도 있습니다.
+
+    try:
+		with open('man_data.txt', 'w') as man_file, open('other_data.txt', 'w') as other_file:
+			print(man, file=man_file)
+	    	print(other, file=other_file)
+    
+	except IOError as err:		
+		print('File error: ' + str(err))
+
+### 7. 기본형식이 맞지 않네요 ###
+with문을 사용하여 man_data.txt 파일을 읽고 출력해 보겠습니다
+
+	with open('man_data.txt') as mdf:
+    	print(mdf.readline())      
+
+다음과 같이 출력 됩니다.
+
+	['Is this the right room for an argument?', "No you haven't!", 'When?', "No you didn't!", "You didn't!", 'You did not!', 'Ah! (taking out his wallet and paying) Just the five minutes.', 'You most certainly did not!', "Oh no you didn't!", "Oh no you didn't!", "Oh look, this isn't an argument!", "No it isn't!", "It's just contradiction!", 'It IS!', 'You just contradicted me!', 'You DID!', 'You did just then!', '(exasperated) Oh, this is futile!!', 'Yes it is!']
+
+데이터가 1줄로 길게 나열된 것이 읽기가 너무 어렵죠? 2장에서 써먹었던 print_lol() 함수를 이용해 보겠습니다.
+
+	def print_lol(the_list, indent=False, level=0):
+	    for each_item in the_list:
+	        if isinstance(each_item, list):
+	            print_lol(each_item, indent, level+1)
+	        else:
+	            if indent:
+	                for tab_stop in range(level):
+	                    print("\t", end='')
+	            print(each_item)
+
+위 함수에 네번째 인자를 받아 데이터를 쓸 곳을 지정합니다. 디폴트 값은 sys.stdout 으로 지정합니다.
+	
+	import sys
+
+	def print_lol(the_list, indent=False, level=0, fh=sys.stdout):
+	    for each_item in the_list:
+	        if isinstance(each_item, list):
+	            print_lol(each_item, indent, level+1, fh)
+	        else:
+	            if indent:
+	                for tab_stop in range(level):
+	                    print("\t", end='', file=fh)
+	            print(each_item, file=fh)
+
+### 8. 데이터 피클링 하기 ###
+파이썬은 피클(pickle)이라고 하는 리스트 뿐만이 아닌 모든 파이썬 데이터 개체를 저장하고 읽을 수 있는 표준 라이브러리를 제공합니다.
+#### dump로 저장하고 load로 읽습니다. ####
+
+	try:
+	    with open('man_data.txt', 'w') as man_file, open('other_data.txt', 'w') as other_file:
+	        print_lol(man, fh=man_file)
+	        print_lol(other, fh=other_file)
+	
+	except IOError as err:      
+	    print('File error: ' + str(err))
+
+위 코드를 피클 라이브러리를을 사용하도록 바꾸어 보겠습니다.
+
+	import pickle
+
+	try:
+	    with open('man_data.txt', 'wb') as man_file, open('other_data.txt', 'wb') as other_file:
+	        pickle.dump(man, man_file)
+	        pickle.dump(other, other_file)
+	
+	except IOError as err:      
+    	print('File error: ' + str(err))
+
+	except pickle.PickleError as perr:      
+    	print('Picking error: ' + str(perr)) 
+
+각각의 파일을 열어보면 다음과 같습니다.
+
+	]q (X'   Is this the right room for an argument?qX   No you haven't!qX   When?qX   No you didn't!qX   You didn't!qX   You did not!qX=   Ah! (taking out his wallet and paying) Just the five minutes.qX   You most certainly did not!qX   Oh no you didn't!q	X   Oh no you didn't!qX    Oh look, this isn't an argument!qX   No it isn't!qX   It's just contradiction!qX   It IS!qX   You just contradicted me!qX   You DID!qX   You did just then!qX"   (exasperated) Oh, this is futile!!qX   Yes it is!qe.
+	]q (X   I've told you once.qX   Yes I have.qX	   Just now.qX   Yes I did!qX   I'm telling you, I did!qXD   Oh I'm sorry, is this a five minute argument, or the full half hour?qX!   Just the five minutes. Thank you.qX   Anyway, I did.qX@   Now let's get one thing quite clear: I most definitely told you!q	X   Oh yes I did!qX   Oh yes I did!qX   Yes it is!qX   No it isn't!qX   It is NOT!qX   No I didn't!qX	   No no no!qX	   Nonsense!qX   No it isn't!qe.
+
+파일의 내용이 이상하죠? 이는 파일을 텍스트 파일의 형태가 아닌 바이너리 파일의 형태로 저장했기 때문입니다. 텍스트 파일은 실제로 파일의 내용과 더불어 헤더 등의 다른 정보도 포함하고 있습니다. 피클은 이러한 파일의 원본형태의 형식을 취하고 있으며, 이를 dump()로 저장하고 load()로 읽는 것입니다.
+
+이것저것 귀찮다 하면..<br>
+**print로 저장을 했으면 open으로 읽고, dump로 저장했으면 load로 읽으면 됩니다 !!**
+
