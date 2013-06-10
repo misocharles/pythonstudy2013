@@ -1,5 +1,72 @@
 ```python
+#simple_httpd.py
+#HTTP 서버와 CGI 모듈을 임포트
+from http.server import HTTPServer, CGIHTTPRequestHandler
 
+#포트지정
+port = 8080
+
+#HTTP 서버 생성
+httpd = HTTPServer(('', port), CGIHTTPRequestHandler)
+#웹서버 콘솔에 출력될 메세지
+print("Starting simple_httpd on port: " + str(httpd.server_port))
+#웹서버 시작
+httpd.serve_forever()
+
+
+```
+
+
+
+```html
+<!-- index.html -->
+<html>
+<head>
+<title>Welcome to Coach Kelly's Website</title>
+<link type="text/css" rel="stylesheet" href="coach.css" />
+</head>
+<body>
+<img src="images/coach-head.jpg">
+<h1>Welcome to Coach Kelly's Website.</h1>
+<p>
+For now, all that you'll find here is my athlete's <a href="cgi-bin/generate_list.py">timing data</a>. Enjoy!
+</p>
+<p>
+<strong>See you on the track!</strong>
+</p>
+</body>
+</html>
+```
+
+
+
+
+```python
+#generate_list.py
+#! /usr/local/bin/python3
+
+import glob
+
+import athletemodel
+import yate
+
+data_files = glob.glob("data/*.txt")    				#data 폴더에 있는 모든 txt 문서 읽기
+athletes = athletemodel.put_to_store(data_files)			#put_to_store 메서드로 읽어들은 txt 담기
+
+print(yate.start_response())
+print(yate.include_header("Coach Kelly's List of Athletes"))		#입력한 문자열로 제목을 설정합니다 .
+print(yate.start_form("generate_timing_data.py"))			#연결할 서버측 프로그램의 이름을 주어 폼을 생성
+print(yate.para("Select an athlete from the list to work with:"))	#사용자에게 해야하는 일을 알려주는 텍스트
+for each_athlete in athletes:						#받아온 선수 리스트 딕셔너리를 이름을 뽑아서 radio button 생성
+    print(yate.radio_button("which_athlete", athletes[each_athlete].name))
+print(yate.end_form("Select"))						#submit form의 value 이름값 지정
+print(yate.include_footer({"Home": "/index.html"}))			#하단 홈텍스트 클릭스 시작 페이지로 이동할 수 있게
+```
+
+
+
+```python
+#athletemodel.py
 import pickle
 
 from athletelist import AthleteList
@@ -17,11 +84,11 @@ def get_coach_data(filename):
 def put_to_store(files_list):
     all_athletes = {}
     for each_file in files_list:
-        ath = get_coach_data(each_file)
-        all_athletes[ath.name] = ath
+        ath = get_coach_data(each_file)    		#차례차례 파일을 열고, AthleteList 객체로 만들어 딕셔너리에 저장
+        all_athletes[ath.name] = ath			#각 선수의 이름을 키 값으로 저장
     try:
         with open('athletes.pickle', 'wb') as athf:
-            pickle.dump(all_athletes, athf)
+            pickle.dump(all_athletes, athf)		#만들어진 all_athletes의 전체 파일을 피클파일에 저장
     except IOError as ioerr:
         print('File error (put_and_store): ' + str(ioerr))
     return(all_athletes)
@@ -30,9 +97,123 @@ def get_from_store():
     all_athletes = {}
     try:
         with open('athletes.pickle', 'rb') as athf:
-            all_athletes = pickle.load(athf)
+            all_athletes = pickle.load(athf)		#피클전체를 딕셔너리로 읽어들이면 끝.
     except IOError as ioerr:
         print('File error (get_from_store): ' + str(ioerr))
     return(all_athletes)
+
+```
+
+
+
+```python
+athletelist.py
+class AthleteList(list):
+
+    def __init__(self, a_name, a_dob=None, a_times=[]):
+        list.__init__([])
+        self.name = a_name
+        self.dob = a_dob
+        self.extend(a_times)
+
+    @staticmethod
+    def sanitize(time_string):
+        if '-' in time_string:
+            splitter = '-'
+        elif ':' in time_string:
+            splitter = ':'
+        else:
+            return(time_string)
+        (mins, secs) = time_string.split(splitter)
+        return(mins + '.' + secs)
+
+    @property    		#property 선언으로 함수대신 인자값처럼 호출할 수 있습니다
+    def top3(self):
+        return(sorted(set([self.sanitize(t) for t in self]))[0:3])
+
+
+```
+
+
+
+```python
+#generate_timing.py
+#! /usr/local/bin/python3
+
+import cgi    							#파이썬의 표준 라이브러리인 cgi모듈
+
+import cgitb								#파이썬 CGI 추적기능 활성화
+cgitb.enable()								#웹화면에 에러메시지를 보여준다 문제가 해결되고 추적기능을 끄면 됩니다.
+
+import athletemodel
+import yate
+
+athletes = athletemodel.get_from_store()				#모델에서 읽어들인 선수 데이터를 가져옵니다.
+
+form_data = cgi.FieldStorage()						#cgi모듈을 사용해서 모든 폼 데이터를 가져와서 딕셔너리에 넣습니다.
+athlete_name = form_data['which_athlete'].value				#폼 데이터 딕셔너리에 키를 지정해서 값을 가져옵니다
+
+print(yate.start_response())
+print(yate.include_header("Coach Kelly's Timing Data"))			#입력한 문자열로 제목을 설정합니다 .   
+print(yate.header("Athlete: " + athlete_name + ", DOB: " +		#선수의 이름과 생년월일을 보여줍니다
+                      athletes[athlete_name].dob + "."))
+print(yate.para("The top times for this athlete are:"))			
+print(yate.u_list(athletes[athlete_name].top3))				#해당 선수의 최고 점수 top3를 ul 형태로 뿌려줍니다
+print(yate.include_footer({"Home": "/index.html",			#Home, 다른선수 선택 버튼의 구현
+                           "Select another athlete": "generate_list.py"}))
+
+
+```
+
+
+
+```python
+#yate.py
+# 표준 string 라이브러리에서 Template 클래스를 임포트한다.
+from string import Template
+
+#하나의 선택적 인자를 받아 CGI의 Content-type: 라인을 생성한다.
+text/html이 기본설정
+def start_response(resp="text/html"):
+    return('Content-type: ' + resp + '\n\n')
+
+def include_header(the_title):
+    with open('templates/header.html') as headf:    #templates/header.html이라는 별도 파일에 저장되어 있는 파일을 읽어서
+        head_text = headf.read()
+    header = Template(head_text)
+    return(header.substitute(title=the_title))		#제목을 title을 넘겨받은 인자값 으로 변경
+
+def include_footer(the_links):
+    with open('templates/footer.html') as footf:	#templates/footer.html파일을 열고 읽어서 받아온 인자열로 a링크를 생성한다.
+        foot_text = footf.read()
+    link_string = ''
+    for key in the_links:
+        link_string += '<a href="' + the_links[key] + '">' + key + '</a>&nbsp;&nbsp;&nbsp;&nbsp;'
+    footer = Template(foot_text)
+    return(footer.substitute(links=link_string))
+
+def start_form(the_url, form_type="POST"):		#호출자가 호출한 url로 form action을 선택하고 form_type도 선택가능
+    return('<form action="' + the_url + '" method="' + form_type + '">')
+
+def end_form(submit_msg="Submit"):			#submit 타입의 버튼에 보여지는 메세지를 설정하는 함수
+    return('<p></p><input type=submit value="' + submit_msg + '"></form>')
+
+def radio_button(rb_name, rb_value):			#인자로 받은 라디오버튼의 이름과 value값을 받아서 radio input을 만든다.
+    return('<input type="radio" name="' + rb_name +
+                             '" value="' + rb_value + '"> ' + rb_value + '<br />')
+
+def u_list(items):					#선수들의 기록리스트를 받아서 ul태그로 뿌려주는 역할을 할 함수
+    u_string = '<ul>'
+    for item in items:
+        u_string += '<li>' + item + '</li>'
+    u_string += '</ul>'
+    return(u_string)
+
+def header(header_text, header_level=2):		#header 에 들어갈 제목과 제목 크기를 정한다.
+    return('<h' + str(header_level) + '>' + header_text +
+           '</h' + str(header_level) + '>')
+
+def para(para_text):					#설명을 표현할 텍스트를 하나의 문단으로 만든다
+    return('<p>' + para_text + '</p>') 
 
 ```
