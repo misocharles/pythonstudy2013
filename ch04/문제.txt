@@ -1,0 +1,25 @@
+try:
+    man_file = open('man_data.txt', 여기_1)
+    other_file = open('other_data.txt', 여기_1)
+    print(man, file=man_file)
+    print(other, file=other_file)
+except IOError as err:      
+    print('File error: ' + str(err))
+finally:
+    if 'man_file' in 여기_2:
+        man_file.여기_3
+    if 'other_file' in 여기_2:
+        other_file.여기_3
+
+문제 1. 위 코드에서 [여기_1]에 적당한 코드를 삽입하세요 : "w", 'w'
+문제 2. 위 코드에서 [여기_2]에 적당한 코드를 삽입하세요 : locals()
+문제 3. 위 코드에서 [여기_3]에 적당한 코드를 삽입하세요 : close()
+
+try:
+    여기_4 open('its.txt' , "w") as data:
+        print("It is ... ", file=data)
+except IOError as err:      
+    print('File error: ' + str(err))
+
+문제 4. 위 코드에서 [여기_4]에 적당한 코드를 삽입하세요 : with
+문제 5. dump()로 저장한 파일을 읽는 함수명은 ? : load()
